@@ -1,71 +1,38 @@
-# Meridian Agent Platform
+# LLMOps and MLOps
 
-Architecture overview of a production AI agent and tool platform for quantitative research on Indian equity and derivatives markets. Designed and operated by one engineer at a private research firm.
+The operations practices that keep LLM agents and analytics correct and observable in production. The focus is on what goes wrong with language models in production and how the system is built to catch it.
 
-**Scope.** This repository is documentation only. Each branch describes one part of the platform at the architecture level. None of them contains source code, prompts, data, configuration, credentials, or infrastructure details. Everything described runs on real-time and historical market data. No synthetic data is used.
+## Versioning
 
-## Projects
+- **Prompts are version-controlled** alongside the pipelines that use them. A prompt change is reviewed and tested like any other code change.
+- **Pinned model versions for decisions.** A floating model alias once resolved to different model versions inside a single production run. Decision-relevant steps now run on fixed versions, and changes to them are deliberate.
+- **Explicit model roles.** A general model handles research. A pinned model handles decision steps. An independent second model handles cross-checks.
 
-| Branch | What it covers |
-|---|---|
-| [daily-market-intelligence](https://github.com/sagar54368/meridian-agent-platform/tree/daily-market-intelligence) | Scheduled multi-agent market research and options-automation pipeline |
-| [mcp-tool-platform](https://github.com/sagar54368/meridian-agent-platform/tree/mcp-tool-platform) | Two MCP servers and an orchestration layer for agent-callable analytics |
-| [ai-portfolio-management](https://github.com/sagar54368/meridian-agent-platform/tree/ai-portfolio-management) | Multi-agent stock analysis, composite scoring, and live portfolio maintenance |
-| [data-platform](https://github.com/sagar54368/meridian-agent-platform/tree/data-platform) | Ingestion, normalization, and storage for market, fundamental, flow, and news data |
-| [llmops-mlops](https://github.com/sagar54368/meridian-agent-platform/tree/llmops-mlops) | Versioning, observability, validation gates, and CI/CD to AWS |
-| [reporting-delivery](https://github.com/sagar54368/meridian-agent-platform/tree/reporting-delivery) | Report rendering, on-demand portfolio analysis, and client delivery |
+## Observability
 
-The first two rows are the platform's two main projects. The rest are the supporting parts.
+- Per-run token and cost tracking, to catch unusual usage early
+- Structured logs for every stage
+- Health checks on services and data feeds
+- Alerts sent through a channel that does not depend on the model provider
 
-## Architecture
+## Validation gates
 
-```mermaid
-flowchart TB
-    subgraph DATA["1. Data layer"]
-        MKT["Real-time and historical market data"]
-        FUND["Fundamentals and filings"]
-        FLOW["Institutional flow and block-deal data"]
-        DB[("Internal databases")]
-    end
-    subgraph TOOLS["2. Tool layer: two MCP servers"]
-        LIVE["Live analytics server"]
-        BT["Backtesting server"]
-    end
-    subgraph ORCH["3. Orchestration"]
-        ROUTE["Tool orchestration across servers"]
-        SCHED["Scheduled pipeline runs"]
-    end
-    subgraph AGENTS["4. Agent and model layer"]
-        MA["Multi-agent analysis"]
-        MM["Multi-model cross-checks"]
-    end
-    subgraph DECIDE["5. Scoring and decisioning"]
-        SCORE["Consolidated scoring"]
-    end
-    subgraph DELIVER["6. Delivery"]
-        RPT["Reports"]
-        ALERT["Alerts and notifications"]
-    end
-    DATA --> TOOLS
-    TOOLS --> ORCH
-    ORCH --> AGENTS
-    AGENTS --> SCORE
-    SCORE --> DELIVER
-    SCHED --> ORCH
-```
+- **Structured output checks.** Every model output is validated against its expected shape before any downstream step uses it.
+- **Data-quality gates.** Runs do not start on incomplete inputs.
+- **Deterministic rendering.** Formatting is fixed by templates, so output cannot drift from day to day.
 
-## How the parts connect
+## Reliability
 
-Market, fundamental, flow, and news data enter through the data platform and land in internal stores. The MCP tool layer reads from those stores and from approved external sources. The orchestration layer lets agents combine tools in one workflow. Agents produce structured analysis, which is scored, checked, and rendered into reports. Operations practices run across every layer: versioned prompts, pinned models for decisions, cost tracking, validation before delivery, and automated deployment.
+- **Stateful reconciliation.** Positions and decisions are rebuilt from an append-only record, not from model memory.
+- **Known failure modes.** Failures seen in production are written down and read at the start of each run.
+- **Graceful failure.** Authentication or data failures produce a no-trade result or an alert. They do not produce a guessed answer.
 
-## Writing
+## Delivery
 
-- Medium article: https://medium.com/@sagarkumar123413/24b97254677f
+- Work is developed and tested locally, pushed to GitHub, verified by CI/CD, and deployed to AWS automatically.
+- Long-running services run under process supervision with automatic restarts.
+- Scheduled production runs are monitored through the alerting described above.
 
 ## Not included
 
-Source code, prompts, data, strategy and scoring logic, model configuration, credentials, server and network topology, client details, and screenshots of internal systems.
-
-## Author
-
-Sagar Kumar. Shared for portfolio and discussion purposes. Not licensed for reuse.
+Pipeline definitions, prompts, configuration, credentials, and incident logs.
