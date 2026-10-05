@@ -1,71 +1,33 @@
-# Meridian Agent Platform
+# Daily Market Intelligence and Options Automation
 
-Architecture overview of a production AI agent and tool platform for quantitative research on Indian equity and derivatives markets. Designed and operated by one engineer at a private research firm.
+A scheduled, multi-agent pipeline that runs every weekday morning on production servers. It researches current market conditions, produces derivatives-focused research, and delivers a formal report to clients. On a normal day, no one touches it.
 
-**Scope.** This repository is documentation only. Each branch describes one part of the platform at the architecture level. None of them contains source code, prompts, data, configuration, credentials, or infrastructure details. Everything described runs on real-time and historical market data. No synthetic data is used.
+## Problem it solves
 
-## Projects
+Manual morning research takes time and varies from person to person. Clients need a report that arrives at the same time every day, covers the same areas in the same order, and is built on checked data. If the data is incomplete, the report should say so instead of guessing.
 
-| Branch | What it covers |
-|---|---|
-| [daily-market-intelligence](https://github.com/sagar54368/meridian-agent-platform/tree/daily-market-intelligence) | Scheduled multi-agent market research and options-automation pipeline |
-| [mcp-tool-platform](https://github.com/sagar54368/meridian-agent-platform/tree/mcp-tool-platform) | Two MCP servers and an orchestration layer for agent-callable analytics |
-| [ai-portfolio-management](https://github.com/sagar54368/meridian-agent-platform/tree/ai-portfolio-management) | Multi-agent stock analysis, composite scoring, and live portfolio maintenance |
-| [data-platform](https://github.com/sagar54368/meridian-agent-platform/tree/data-platform) | Ingestion, normalization, and storage for market, fundamental, flow, and news data |
-| [llmops-mlops](https://github.com/sagar54368/meridian-agent-platform/tree/llmops-mlops) | Versioning, observability, validation gates, and CI/CD to AWS |
-| [reporting-delivery](https://github.com/sagar54368/meridian-agent-platform/tree/reporting-delivery) | Report rendering, on-demand portfolio analysis, and client delivery |
+## How a run works
 
-The first two rows are the platform's two main projects. The rest are the supporting parts.
+1. **Market intelligence.** An agent gathers context through the platform's tool layer and web search. The context covers market structure, volatility, institutional flows, open-interest changes, the event calendar, and macro or company news. The agent writes one structured market-state file. It does not write the report.
+2. **Index derivatives.** A second agent reads the market-state file and the live position ledger. For the major index options, it produces either a defined-risk structure or an explicit no-trade result. A no-trade result is either a hold or a data failure, and both are valid outputs.
+3. **Single-stock derivatives.** A third agent screens a candidate universe, ranks names by volatility relationships, applies event and liquidity filters, and proposes a small set of structures.
+4. **Rendering and delivery.** A step with no model call maps the structured output onto a fixed template and sends it. Because the layout is fixed, formatting does not drift from day to day.
 
-## Architecture
+## Design decisions
 
-```mermaid
-flowchart TB
-    subgraph DATA["1. Data layer"]
-        MKT["Real-time and historical market data"]
-        FUND["Fundamentals and filings"]
-        FLOW["Institutional flow and block-deal data"]
-        DB[("Internal databases")]
-    end
-    subgraph TOOLS["2. Tool layer: two MCP servers"]
-        LIVE["Live analytics server"]
-        BT["Backtesting server"]
-    end
-    subgraph ORCH["3. Orchestration"]
-        ROUTE["Tool orchestration across servers"]
-        SCHED["Scheduled pipeline runs"]
-    end
-    subgraph AGENTS["4. Agent and model layer"]
-        MA["Multi-agent analysis"]
-        MM["Multi-model cross-checks"]
-    end
-    subgraph DECIDE["5. Scoring and decisioning"]
-        SCORE["Consolidated scoring"]
-    end
-    subgraph DELIVER["6. Delivery"]
-        RPT["Reports"]
-        ALERT["Alerts and notifications"]
-    end
-    DATA --> TOOLS
-    TOOLS --> ORCH
-    ORCH --> AGENTS
-    AGENTS --> SCORE
-    SCORE --> DELIVER
-    SCHED --> ORCH
-```
+- **One job per agent.** Each stage has a defined input and output contract. Stages cannot overwrite each other's outputs.
+- **State comes from a ledger, not memory.** Before each decision step, current positions are rebuilt from an append-only record. A decision never depends on what a model remembers from earlier in the conversation.
+- **Pinned models for decisions.** Research steps can use a general model. Steps that affect recommendations run on fixed model versions.
+- **Separate rendering.** Models supply content. Templates supply layout.
+- **Failures alert through another path.** If the model provider or the data feed fails, an alert goes out through a channel that does not depend on that provider.
 
-## How the parts connect
+## Operations
 
-Market, fundamental, flow, and news data enter through the data platform and land in internal stores. The MCP tool layer reads from those stores and from approved external sources. The orchestration layer lets agents combine tools in one workflow. Agents produce structured analysis, which is scored, checked, and rendered into reports. Operations practices run across every layer: versioned prompts, pinned models for decisions, cost tracking, validation before delivery, and automated deployment.
-
-## Writing
-
-- Medium article: https://medium.com/@sagarkumar123413/24b97254677f
+- Per-run token and cost tracking, so unusual cost or behavior shows up quickly
+- Data-feed gap detection, with runs stopped or flagged when inputs are missing
+- Holiday and weekend guards
+- Known failure modes recorded and read at the start of each run
 
 ## Not included
 
-Source code, prompts, data, strategy and scoring logic, model configuration, credentials, server and network topology, client details, and screenshots of internal systems.
-
-## Author
-
-Sagar Kumar. Shared for portfolio and discussion purposes. Not licensed for reuse.
+Prompts, filters, thresholds, scoring rules, strategy logic, data sources, recipient lists, and output from real runs.
