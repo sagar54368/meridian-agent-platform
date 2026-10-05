@@ -1,6 +1,6 @@
-# Production AI Research and Analytics Platform
+# Meridian Agent Platform
 
-Architecture overview of a production AI and quantitative-research system for Indian equity and derivatives markets, designed and operated by one engineer at a private research firm.
+Architecture overview of a production AI agent and MCP tool platform for quantitative research on Indian equity and derivatives markets. Designed and operated by one engineer at a private research firm.
 
 **Scope of this repository.** This is an overview only. It contains no source code, prompts, data, configuration, credentials, infrastructure details, strategy or scoring logic, or client information. Everything described runs on real-time and historical market data. No synthetic data is used.
 
