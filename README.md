@@ -1,29 +1,42 @@
 # Reporting and Client Delivery
 
-How analysis becomes a client-ready report. The same rendering approach covers scheduled reports and on-demand analysis.
+How analysis becomes a client-ready report, and how clients are kept informed in real time. The same rendering approach covers scheduled reports and on-demand analysis.
 
-## Scheduled reports
+## What it can do
 
-Each weekday, the daily market-intelligence pipeline produces structured output. A fixed HTML template renders that output into a report, and the report is delivered by email to the distribution list.
+- Renders the daily market-intelligence output into a formal HTML report each weekday
+- Delivers reports by email to a managed distribution list
+- Produces on-demand portfolio analyses: pulls live portfolio and market data through the tool layer, produces a structured analysis with a language model, and renders it in the same format
+- Sends real-time notifications to clients and the team through Slack and email
+- Keeps formatting separate from analysis content, so a template change cannot alter the analysis and an analysis change cannot break the layout
+- Sends failure alerts to the team, and an alert fires if the model provider's authentication fails, so a broken report is not discovered only by a client
 
-## On-demand portfolio analysis
+## Why it's needed
 
-A client or internal user can request an analysis of a portfolio. The system:
+Clients need reports that look the same every time and arrive on schedule. Clients also ask for analysis of their own portfolios, and that output needs the same care as the scheduled reports. Real-time notifications keep clients informed when something needs attention, rather than after the fact. Separating content from layout keeps both reliable.
 
-1. Pulls current portfolio and market data through the MCP tool layer.
-2. Produces a structured analysis with a language model.
-3. Validates the structure.
-4. Renders the result in the same report format as the scheduled reports.
+## What's inside
 
-## Rendering principle
+- **Scheduled report renderer.** Turns structured daily output into a report
+- **On-demand analysis path.** Pulls portfolio and market data, runs the analysis, and renders it
+- **Templates.** Fixed HTML layouts for each report type
+- **Email sender.** Delivers reports to the distribution list
+- **Notification module.** Real-time Slack and email messages to clients and the team
+- **Alert path.** Independent channel for failures, including authentication failures in the model provider
 
-Models produce content. Templates control layout. Formatting is tested separately from analysis content, so a change to the analysis cannot break the report's structure, and a template change cannot alter the analysis.
+## Tech stack
 
-## Delivery and alerting
+- **Language:** Python
+- **Templates:** HTML and CSS
+- **AI:** Anthropic Claude for on-demand analysis content
+- **Data:** MCP tool layer for portfolio and market data
+- **Communication:** Email from Python, Slack SDK and webhooks
+- **Infrastructure:** AWS EC2
 
-- Distribution lists are managed outside the codebase.
-- Delivery failures trigger an alert to the team.
-- A fallback path reports failures in rendering or delivery, so a report never goes out silently broken.
+## Design principles
+
+- **Models produce content, templates control layout.** Formatting is tested separately from analysis.
+- **Failures are visible.** Delivery and authentication problems alert the team instead of failing silently.
 
 ## Not included
 
