@@ -1,71 +1,32 @@
-# Meridian Agent Platform
+# Data Platform
 
-Architecture overview of a production AI agent and tool platform for quantitative research on Indian equity and derivatives markets. Designed and operated by one engineer at a private research firm.
+The ingestion, normalization, and storage layer that feeds every agent and tool in the platform. It handles real-time and historical data only. No synthetic data is used anywhere in the pipeline.
 
-**Scope.** This repository is documentation only. Each branch describes one part of the platform at the architecture level. None of them contains source code, prompts, data, configuration, credentials, or infrastructure details. Everything described runs on real-time and historical market data. No synthetic data is used.
+## Sources
 
-## Projects
+- **Market data.** Real-time and historical prices and bars from brokerage APIs.
+- **Fundamentals.** Company financials and ratios from internal databases, supplemented by external screener sources.
+- **Flows and block deals.** Institutional flow data and bulk and block-deal data from external market-data providers.
+- **News and events.** News articles and macro or company events from news sources.
 
-| Branch | What it covers |
-|---|---|
-| [daily-market-intelligence](https://github.com/sagar54368/meridian-agent-platform/tree/daily-market-intelligence) | Scheduled multi-agent market research and options-automation pipeline |
-| [mcp-tool-platform](https://github.com/sagar54368/meridian-agent-platform/tree/mcp-tool-platform) | Two MCP servers and an orchestration layer for agent-callable analytics |
-| [ai-portfolio-management](https://github.com/sagar54368/meridian-agent-platform/tree/ai-portfolio-management) | Multi-agent stock analysis, composite scoring, and live portfolio maintenance |
-| [data-platform](https://github.com/sagar54368/meridian-agent-platform/tree/data-platform) | Ingestion, normalization, and storage for market, fundamental, flow, and news data |
-| [llmops-mlops](https://github.com/sagar54368/meridian-agent-platform/tree/llmops-mlops) | Versioning, observability, validation gates, and CI/CD to AWS |
-| [reporting-delivery](https://github.com/sagar54368/meridian-agent-platform/tree/reporting-delivery) | Report rendering, on-demand portfolio analysis, and client delivery |
+## Storage
 
-The first two rows are the platform's two main projects. The rest are the supporting parts.
+Data is stored in several purpose-specific databases: price history, fundamentals, risk and portfolio state, and news and events. Downstream agents read from these internal stores. They do not call external sources directly, so every agent in a cycle works from the same cleaned snapshot.
 
-## Architecture
+## Ingestion design
 
-```mermaid
-flowchart TB
-    subgraph DATA["1. Data layer"]
-        MKT["Real-time and historical market data"]
-        FUND["Fundamentals and filings"]
-        FLOW["Institutional flow and block-deal data"]
-        DB[("Internal databases")]
-    end
-    subgraph TOOLS["2. Tool layer: two MCP servers"]
-        LIVE["Live analytics server"]
-        BT["Backtesting server"]
-    end
-    subgraph ORCH["3. Orchestration"]
-        ROUTE["Tool orchestration across servers"]
-        SCHED["Scheduled pipeline runs"]
-    end
-    subgraph AGENTS["4. Agent and model layer"]
-        MA["Multi-agent analysis"]
-        MM["Multi-model cross-checks"]
-    end
-    subgraph DECIDE["5. Scoring and decisioning"]
-        SCORE["Consolidated scoring"]
-    end
-    subgraph DELIVER["6. Delivery"]
-        RPT["Reports"]
-        ALERT["Alerts and notifications"]
-    end
-    DATA --> TOOLS
-    TOOLS --> ORCH
-    ORCH --> AGENTS
-    AGENTS --> SCORE
-    SCORE --> DELIVER
-    SCHED --> ORCH
-```
+- **Rate-limited clients.** API calls respect provider limits through request-window control.
+- **Throttled collection.** Public sources are collected at a slow, polite rate.
+- **Normalized schemas.** Data from different providers is mapped to one schema before storage.
+- **Caching by data type.** Live quotes expire within minutes, historical bars within hours, and fundamentals within a day or more. Slow-changing data is not refetched every cycle.
+- **Validation before use.** Data-quality checks run before each cycle. Missing or invalid inputs stop the run or flag it, rather than letting a model fill in the gap.
 
-## How the parts connect
+## Operations
 
-Market, fundamental, flow, and news data enter through the data platform and land in internal stores. The MCP tool layer reads from those stores and from approved external sources. The orchestration layer lets agents combine tools in one workflow. Agents produce structured analysis, which is scored, checked, and rendered into reports. Operations practices run across every layer: versioned prompts, pinned models for decisions, cost tracking, validation before delivery, and automated deployment.
-
-## Writing
-
-- Medium article: https://medium.com/@sagarkumar123413/24b97254677f
+- Scheduled refresh jobs
+- Gap detection for missing feeds, with alerts
+- Separate handling for live and historical workloads, so large historical loads do not slow live reads
 
 ## Not included
 
-Source code, prompts, data, strategy and scoring logic, model configuration, credentials, server and network topology, client details, and screenshots of internal systems.
-
-## Author
-
-Sagar Kumar. Shared for portfolio and discussion purposes. Not licensed for reuse.
+Schemas, table definitions, query logic, hostnames, provider credentials, and the contents of any dataset.
