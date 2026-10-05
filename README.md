@@ -1,71 +1,34 @@
-# Meridian Agent Platform
+# AI Portfolio Management
 
-Architecture overview of a production AI agent and tool platform for quantitative research on Indian equity and derivatives markets. Designed and operated by one engineer at a private research firm.
+A multi-agent system that starts with a universe of stocks, analyzes each stock on its own across technical, fundamental, news, and risk dimensions, and combines those views into one composite score. It then maintains a live portfolio that is re-evaluated every cycle, not only at entry.
 
-**Scope.** This repository is documentation only. Each branch describes one part of the platform at the architecture level. None of them contains source code, prompts, data, configuration, credentials, or infrastructure details. Everything described runs on real-time and historical market data. No synthetic data is used.
+## Flow of one cycle
 
-## Projects
+1. **Universe.** The starting list is an index, a custom watchlist, or the current holdings of a portfolio under review. Nothing outside the universe is analyzed.
+2. **Ingestion.** Market, fundamental, and news data are pulled, cleaned, and stored, so agents read from one consistent dataset.
+3. **Parallel analysis.** Four agents run on every stock at the same time:
+   - *Technical.* Indicators across daily, four-hour, and one-hour views, plus a check for agreement across timeframes. Conflicting timeframes lower the score.
+   - *Fundamental.* Quality, growth, and valuation, weighted toward trend direction rather than single snapshots.
+   - *News and sentiment.* A language model reads recent news and returns a directional view with a stated confidence and reasoning. A separate read covers the market regime for the whole portfolio.
+   - *Risk.* Value at risk, each position's contribution to total portfolio risk, and correlation with the rest of the book.
+4. **Composite scoring.** Each stock gets one score built from weighted components and mapped to a tier. Every point traces back to a specific agent output.
+5. **Decisions.** Each stock gets a recommendation relative to the book, not in isolation.
+6. **Portfolio construction.** Positions are sized, checked for unintended concentration, and tested against a portfolio-level risk gate before anything is finalized.
+7. **Position management.** Each holding is reconciled against the new analysis and marked as new, hold, reduce, or exit. The reconciliation runs against a persisted position state, so a deteriorating position cannot be ignored.
+8. **Output.** A cycle report with the full portfolio, each position's score breakdown, and portfolio statistics. Execution is optional and separate from analysis, so the analysis can run without placing any orders.
 
-| Branch | What it covers |
-|---|---|
-| [daily-market-intelligence](https://github.com/sagar54368/meridian-agent-platform/tree/daily-market-intelligence) | Scheduled multi-agent market research and options-automation pipeline |
-| [mcp-tool-platform](https://github.com/sagar54368/meridian-agent-platform/tree/mcp-tool-platform) | Two MCP servers and an orchestration layer for agent-callable analytics |
-| [ai-portfolio-management](https://github.com/sagar54368/meridian-agent-platform/tree/ai-portfolio-management) | Multi-agent stock analysis, composite scoring, and live portfolio maintenance |
-| [data-platform](https://github.com/sagar54368/meridian-agent-platform/tree/data-platform) | Ingestion, normalization, and storage for market, fundamental, flow, and news data |
-| [llmops-mlops](https://github.com/sagar54368/meridian-agent-platform/tree/llmops-mlops) | Versioning, observability, validation gates, and CI/CD to AWS |
-| [reporting-delivery](https://github.com/sagar54368/meridian-agent-platform/tree/reporting-delivery) | Report rendering, on-demand portfolio analysis, and client delivery |
+## Design principles
 
-The first two rows are the platform's two main projects. The rest are the supporting parts.
+- **No hardcoded thresholds in scoring.** Components are measured relative to peers, to history, and to trend, so the system does not need retuning each time the market regime changes.
+- **Risk is part of the score.** A position cannot score well on upside alone. Its contribution to portfolio risk counts in the same score.
+- **Multi-timeframe confirmation.** A stock can look strong on a daily chart and weak on an hourly one. The score rewards agreement across timeframes.
+- **State is reconciled, never assumed.** Each cycle rebuilds current state from a persisted record.
+- **Analysis and execution are separate.** An auditable recommendation exists whether or not anything acts on it.
 
-## Architecture
+## Validation
 
-```mermaid
-flowchart TB
-    subgraph DATA["1. Data layer"]
-        MKT["Real-time and historical market data"]
-        FUND["Fundamentals and filings"]
-        FLOW["Institutional flow and block-deal data"]
-        DB[("Internal databases")]
-    end
-    subgraph TOOLS["2. Tool layer: two MCP servers"]
-        LIVE["Live analytics server"]
-        BT["Backtesting server"]
-    end
-    subgraph ORCH["3. Orchestration"]
-        ROUTE["Tool orchestration across servers"]
-        SCHED["Scheduled pipeline runs"]
-    end
-    subgraph AGENTS["4. Agent and model layer"]
-        MA["Multi-agent analysis"]
-        MM["Multi-model cross-checks"]
-    end
-    subgraph DECIDE["5. Scoring and decisioning"]
-        SCORE["Consolidated scoring"]
-    end
-    subgraph DELIVER["6. Delivery"]
-        RPT["Reports"]
-        ALERT["Alerts and notifications"]
-    end
-    DATA --> TOOLS
-    TOOLS --> ORCH
-    ORCH --> AGENTS
-    AGENTS --> SCORE
-    SCORE --> DELIVER
-    SCHED --> ORCH
-```
-
-## How the parts connect
-
-Market, fundamental, flow, and news data enter through the data platform and land in internal stores. The MCP tool layer reads from those stores and from approved external sources. The orchestration layer lets agents combine tools in one workflow. Agents produce structured analysis, which is scored, checked, and rendered into reports. Operations practices run across every layer: versioned prompts, pinned models for decisions, cost tracking, validation before delivery, and automated deployment.
-
-## Writing
-
-- Medium article: https://medium.com/@sagarkumar123413/24b97254677f
+Validated through cross-checks between independent agents on the same instruments, out-of-sample testing, and review of each agent's output quality. Results are not published.
 
 ## Not included
 
-Source code, prompts, data, strategy and scoring logic, model configuration, credentials, server and network topology, client details, and screenshots of internal systems.
-
-## Author
-
-Sagar Kumar. Shared for portfolio and discussion purposes. Not licensed for reuse.
+Weights, tier boundaries, indicator parameters, prompts, data sources, portfolio contents, and performance results.
